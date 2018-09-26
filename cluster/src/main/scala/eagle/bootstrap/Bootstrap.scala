@@ -4,11 +4,11 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.ServerBinding
 import akka.stream.ActorMaterializer
-import cats.Monad
 import cats.effect.{ExitCode, IO, IOApp, Resource}
 import eagle.http.HttpRouter
 
 import scala.concurrent.ExecutionContext
+import cats.implicits._
 
 object Bootstrap extends IOApp{
 
@@ -17,7 +17,6 @@ object Bootstrap extends IOApp{
       IO(ActorSystem("Eagle"))
 
     import ExecutionContext.Implicits.global
-    import cats.implicits._
 
 
     val systemRelease: ActorSystem => IO[Unit] = system => IO.fromFuture(IO(system.terminate().map(_ => ())))
