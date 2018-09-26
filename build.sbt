@@ -1,9 +1,9 @@
 import Dependencies._
+import sbt.addCompilerPlugin
 
 ThisBuild / organization := "org.vaslabs"
 ThisBuild / version      := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.12.6"
-
 
 
 lazy val defaultDockerSettings = {
@@ -13,10 +13,21 @@ lazy val defaultDockerSettings = {
   dockerBaseImage in Docker := "openjdk:8u171-jdk-alpine3.8"
 }
 
+lazy val compilerOptions = Seq(
+  scalacOptions ++= Seq(
+    "-Ypartial-unification"
+  )
+)
+
 lazy val cluster = (project in file("cluster"))
   .settings(
     name := "eagle-cluster",
     libraryDependencies ++= eagleCluster
   ).enablePlugins(DockerPlugin)
-  .settings(defaultDockerSettings)
+  .settings(
+    defaultDockerSettings,
+  ).settings(
+    compilerOptions
+  )
+
 
