@@ -22,8 +22,8 @@ object Bootstrap extends IOApp{
     import ExecutionContext.Implicits.global
 
 
-    val systemRelease: ActorSystem => IO[Unit] = system =>
-      IO.fromFuture(IO(CoordinatedShutdown(system).run(JvmExitReason))).void
+    val registerCoordinatedShutdown: ActorSystem => IO[Unit] = system =>
+      IO(CoordinatedShutdown(system).addJvmShutdownHook(println("Shutting down")))
 
     val allocateHttp: (ActorSystem, EagleConfig) => IO[ServerBinding] = (system, conf) => IO.fromFuture {
       implicit val actorSystem: ActorSystem = system
@@ -33,7 +33,8 @@ object Bootstrap extends IOApp{
       IO(Http().bindAndHandle(router.route, conf.http.bindInterface, conf.http.bindPort))
     }
 
-    val releaseHttp: ServerBinding => IO[Unit] = serverBinding => IO.fromFuture(IO(serverBinding.unbind().map(_ => ())))
+    val releaseHttp: ServerBinding => IO[Unit] = serverBinding =>
+      IO.fromFuture(IO(serverBinding.unbind().map(_ => println("Unbound from http port"))))
 
     def httpResource(actorSystem: ActorSystem, conf: EagleConfig): Resource[IO, ServerBinding] =
       Resource.make(allocateHttp(actorSystem, conf))(releaseHttp)
@@ -41,13 +42,13 @@ object Bootstrap extends IOApp{
 
     val appResource: Resource[IO, (ActorSystem, EagleConfig)] = for {
       config <- Resource.liftF[IO, EagleConfig](IO(loadConfigOrThrow[EagleConfig]("eagle")))
-      actorSystem <- Resource.make(systemAllocate)(systemRelease)
+      actorSystem <- Resource.liftF(systemAllocate)
       httpBinding <- httpResource(actorSystem, config)
     } yield (actorSystem, config)
 
     appResource.use{
       case (actorSystem, eagleConfig) =>
-         IO.never.map(_ => ExitCode.Success)
+        registerCoordinatedShutdown(actorSystem) *> IO.never.map(_ => ExitCode.Success)
     }
   }
 
