@@ -1,6 +1,8 @@
 package eagle.bootstrap
 
-import akka.actor.ActorSystem
+import akka.actor
+import akka.actor.CoordinatedShutdown.JvmExitReason
+import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.ServerBinding
 import akka.stream.ActorMaterializer
@@ -20,7 +22,8 @@ object Bootstrap extends IOApp{
     import ExecutionContext.Implicits.global
 
 
-    val systemRelease: ActorSystem => IO[Unit] = system => IO.fromFuture(IO(system.terminate().map(_ => ())))
+    val systemRelease: ActorSystem => IO[Unit] = system =>
+      IO.fromFuture(IO(CoordinatedShutdown(system).run(JvmExitReason))).void
 
     val allocateHttp: (ActorSystem, EagleConfig) => IO[ServerBinding] = (system, conf) => IO.fromFuture {
       implicit val actorSystem: ActorSystem = system
@@ -44,7 +47,7 @@ object Bootstrap extends IOApp{
 
     appResource.use{
       case (actorSystem, eagleConfig) =>
-        IO.never.map(_ => ExitCode.Success)
+         IO.never.map(_ => ExitCode.Success)
     }
   }
 
