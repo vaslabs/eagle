@@ -9,7 +9,8 @@ import eagle.http.HttpRouter
 
 import scala.concurrent.ExecutionContext
 import cats.implicits._
-
+import pureconfig._
+import eagle.conf._
 object Bootstrap extends IOApp{
 
   override def run(args: List[String]): IO[ExitCode] = {
@@ -21,25 +22,30 @@ object Bootstrap extends IOApp{
 
     val systemRelease: ActorSystem => IO[Unit] = system => IO.fromFuture(IO(system.terminate().map(_ => ())))
 
-    val allocateHttp: (ActorSystem, ActorMaterializer) => IO[ServerBinding] = (system, mat) => IO.fromFuture {
-      implicit val actorMaterialiser: ActorMaterializer = mat
+    val allocateHttp: (ActorSystem, EagleConfig) => IO[ServerBinding] = (system, conf) => IO.fromFuture {
       implicit val actorSystem: ActorSystem = system
+      implicit val actorMaterialiser: ActorMaterializer = ActorMaterializer()
+
       val router = new HttpRouter {}
-      IO(Http().bindAndHandle(router.route, "0.0.0.0", 8080))
+      IO(Http().bindAndHandle(router.route, conf.http.bindInterface, conf.http.bindPort))
     }
 
     val releaseHttp: ServerBinding => IO[Unit] = serverBinding => IO.fromFuture(IO(serverBinding.unbind().map(_ => ())))
 
-    def httpResource(actorSystem: ActorSystem): Resource[IO, ServerBinding] =
-      Resource.make(allocateHttp(actorSystem, ActorMaterializer()(actorSystem)))(releaseHttp)
+    def httpResource(actorSystem: ActorSystem, conf: EagleConfig): Resource[IO, ServerBinding] =
+      Resource.make(allocateHttp(actorSystem, conf))(releaseHttp)
 
 
-    val appResource: Resource[IO, ActorSystem] = for {
+    val appResource: Resource[IO, (ActorSystem, EagleConfig)] = for {
+      config <- Resource.liftF[IO, EagleConfig](IO(loadConfigOrThrow[EagleConfig]("eagle")))
       actorSystem <- Resource.make(systemAllocate)(systemRelease)
-      httpBinding <- httpResource(actorSystem)
-    } yield actorSystem
+      httpBinding <- httpResource(actorSystem, config)
+    } yield (actorSystem, config)
 
-    appResource.use(_ => IO.never.map(_ => ExitCode.Success))
+    appResource.use{
+      case (actorSystem, eagleConfig) =>
+        IO.never.map(_ => ExitCode.Success)
+    }
   }
 
 }

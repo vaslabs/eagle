@@ -32,9 +32,11 @@ object Dependencies {
 
       val all = Seq(actor, testKit, http, httpTestkit, cluster, clusterSharding, persistence, Discovery.kubernetes)
     }
+    
+    val pureConf = "com.github.pureconfig" %% "pureconfig" % "0.9.2"
 
   }
 
   import Libraries._
-  lazy val eagleCluster = Akka.all ++ cats.all
+  lazy val eagleCluster = Akka.all ++ cats.all ++ Seq(pureConf)
 }
