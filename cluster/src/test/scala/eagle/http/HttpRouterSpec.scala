@@ -1,17 +1,18 @@
 package eagle.http
 
-import java.math.BigInteger
 import java.util.UUID
 
 import org.scalatest.{Matchers, WordSpec}
 import akka.http.scaladsl.server._
 import Directives._
+import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
-import eagle.http.model.TrackingEntity
+import eagle.http.model.{Base64, Location, RecordLocation, TrackingEntity}
 import sun.security.rsa.RSAPublicKeyImpl
 
 import scala.concurrent.Future
+import scala.util.Random
 
 class HttpRouterSpec extends WordSpec with Matchers with ScalatestRouteTest with FailFastCirceSupport{
 
@@ -19,7 +20,8 @@ class HttpRouterSpec extends WordSpec with Matchers with ScalatestRouteTest with
 
   "default http route" must {
     val uuid = UUID.randomUUID()
-    val publicKeyValue = eagle.encryption.rsaKeyPair(512).unsafeRunSync().getPublic.asInstanceOf[RSAPublicKeyImpl]
+    val keyPair = eagle.encryption.rsaKeyPair(512).unsafeRunSync()
+    val publicKeyValue = keyPair.getPublic.asInstanceOf[RSAPublicKeyImpl]
     val httpRouter = new TrackingApi with HttpRouter {
 
       override def createNewUser(): Future[TrackingEntity] = Future.successful(TrackingEntity(uuid, publicKeyValue))
@@ -40,6 +42,11 @@ class HttpRouterSpec extends WordSpec with Matchers with ScalatestRouteTest with
         responseAs[TrackingEntity] shouldBe TrackingEntity(
           uuid, publicKeyValue
         )
+      }
+    }
+    "then posting data with that key can be decrypted" in {
+      Post("/", RecordLocation(uuid, "foobar")) ~> httpRouter.route ~> check {
+        status shouldEqual StatusCodes.OK
       }
     }
   }

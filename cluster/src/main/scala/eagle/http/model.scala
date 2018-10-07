@@ -2,16 +2,22 @@ package eagle.http
 
 import java.util.UUID
 
-import eagle.http.model.TrackingEntity
+import eagle.http.model.{Location, RecordLocation, TrackingEntity}
 import io.circe.{Decoder, Encoder, Json}
 import sun.security.rsa.RSAPublicKeyImpl
 
 object model {
 
   type PublicKey = RSAPublicKeyImpl
+  type Base64    = String
+  type Latitude  = BigDecimal
+  type Longitude = BigDecimal
 
   case class TrackingEntity(uuid: UUID, publicKey: PublicKey)
 
+  case class RecordLocation(uuid: UUID, payload: String)
+
+  case class Location(latitude: Latitude, longitude: Longitude)
 }
 
 object json_support {
@@ -36,5 +42,9 @@ object json_support {
 
   implicit val trackingEntityEncoder: Encoder[TrackingEntity] = deriveEncoder[TrackingEntity]
   implicit val trackingEntityDecoder: Decoder[TrackingEntity] = deriveDecoder[TrackingEntity]
+
+  implicit val locationDecoder: Decoder[RecordLocation] = deriveDecoder[RecordLocation]
+  implicit val locationEncoder: Encoder[RecordLocation] = deriveEncoder[RecordLocation]
+
 
 }

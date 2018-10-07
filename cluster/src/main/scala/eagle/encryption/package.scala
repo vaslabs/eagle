@@ -1,8 +1,12 @@
 package eagle
 
+import java.nio.charset.{Charset, StandardCharsets}
 import java.security.KeyPair
+import java.util.Base64
 
 import cats.effect.IO
+import eagle.http.model.PublicKey
+import javax.crypto.Cipher
 
 package object encryption {
 
@@ -13,5 +17,12 @@ package object encryption {
       keyGen.initialize(512)
       keyGen.generateKeyPair()
     }
+  }
+
+  def encrypt(publicKey: PublicKey, input: String): IO[String] = IO {
+    val cipher = Cipher.getInstance("RSA")
+    cipher.init(Cipher.ENCRYPT_MODE, publicKey)
+    val data = cipher.doFinal(input.getBytes(StandardCharsets.UTF_8))
+    Base64.getEncoder.encodeToString(data)
   }
 }
